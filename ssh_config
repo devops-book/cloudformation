@@ -1,0 +1,7 @@
+Host *
+  User centos
+  Port 22
+  StrictHostKeyChecking no
+  PasswordAuthentication no
+  IdentityFile "/var/lib/jenkins/.ssh/id_rsa"
+  IdentitiesOnly yes

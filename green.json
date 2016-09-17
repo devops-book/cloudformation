@@ -1,0 +1,147 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters" : {
+    "VpcId" : {
+      "Type" : "String"
+    },
+    "SubnetId" : {
+      "Type" : "String"
+    },
+    "KeyName" : {
+      "Description" : "Amazon EC2 Key Pair",
+      "Type" : "AWS::EC2::KeyPair::KeyName"
+    },
+    "ImageId" : {
+      "Description" : "Instance Image ID",
+      "Default" : "ami-eec1c380",
+      "Type" : "String"
+    },
+    "InstanceType" : {
+      "Type" : "String",
+      "Default" : "t2.micro",
+      "AllowedValues" : ["t2.nano", "t2.micro", "m2.small"],
+      "Description" : "Enter t2.nano, t2.micro or m2.small. Default is t2.micro."
+    },
+    "LbSecurityGroupId" : {
+      "Type" : "String",
+      "Description" : "Enter ID of LBSecurityGroup attached ELB."
+    },
+    "SshSecurityGroupId" : {
+      "Type" : "String",
+      "Description" : "Enter ID of SSHSecurityGroup attached CI server."
+    }
+  },
+
+  "Resources": {
+    "WebSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal Web access",
+        "VpcId" : { "Ref" : "VpcId" },
+        "SecurityGroupIngress": [{
+          "IpProtocol" : "tcp",
+          "FromPort" : "8080",
+          "ToPort" : "8080",
+          "SourceSecurityGroupId" : { "Ref" : "LbSecurityGroupId" }
+        }]
+      }
+    },
+    "SshInnerSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable SSH access via CI server",
+        "VpcId" : { "Ref" : "VpcId" },
+        "SecurityGroupIngress": [{
+          "IpProtocol" : "tcp",
+          "FromPort" : "22",
+          "ToPort" : "22",
+          "SourceSecurityGroupId" : { "Ref" : "SshSecurityGroupId" }
+        }]
+      }
+    },
+    "Web1Ec2Instance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+          "ImageId" : { "Ref": "ImageId" },
+          "InstanceType" : { "Ref": "InstanceType" },
+          "KeyName" : { "Ref": "KeyName" },
+          "NetworkInterfaces": [{
+            "AssociatePublicIpAddress" : "true",
+            "DeleteOnTermination": "true",
+            "GroupSet":[
+              { "Ref" : "WebSecurityGroup" },
+              { "Ref" : "SshInnerSecurityGroup" }
+            ],
+            "SubnetId": { "Ref": "SubnetId" },
+            "DeviceIndex": "0"
+          }], 
+          "Tags" : [
+              {"Key" : "Name", "Value" : "green-web1"},
+              {"Key" : "Side", "Value" : "green"},
+              {"Key" : "ServerType", "Value" : "web"}
+          ],
+          "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#! /bin/bash -v\n",
+          "getenforce\n",
+          "setenforce 0\n",
+          "sed -i 's/SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config\n",
+          "echo '\n' >> /etc/ssh/sshd_config\n",
+          "echo 'Port 22' >> /etc/ssh/sshd_config\n",
+          "mkdir /home/centos/.ssh\n",
+          "curl -s https://raw.githubusercontent.com/devops-book/cloudformation/master/authorized_keys >> /home/centos/.ssh/authorized_keys\n",
+          "chmod 600 /home/centos/.ssh/authorized_keys\n",
+          "chmod 700 /home/centos/.ssh\n",
+          "chown centos:centos -R /home/centos/.ssh\n",
+          "shutdown -r now\n"
+          ]]}} 
+      }
+    },
+    "Web2Ec2Instance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+          "ImageId" : { "Ref": "ImageId" },
+          "InstanceType" : { "Ref": "InstanceType" },
+          "KeyName" : { "Ref": "KeyName" },
+          "NetworkInterfaces": [{
+            "AssociatePublicIpAddress" : "true",
+            "DeleteOnTermination": "true",
+            "GroupSet":[
+              { "Ref" : "WebSecurityGroup" },
+              { "Ref" : "SshInnerSecurityGroup" }
+            ],
+            "SubnetId": { "Ref": "SubnetId" },
+            "DeviceIndex": "0"
+          }], 
+          "Tags" : [
+              {"Key" : "Name", "Value" : "green-web2"},
+              {"Key" : "Side", "Value" : "green"},
+              {"Key" : "ServerType", "Value" : "web"}
+          ],
+          "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+          "#! /bin/bash -v\n",
+          "getenforce\n",
+          "setenforce 0\n",
+          "sed -i 's/SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config\n",
+          "echo '\n' >> /etc/ssh/sshd_config\n",
+          "echo 'Port 22' >> /etc/ssh/sshd_config\n",
+          "mkdir /home/centos/.ssh\n",
+          "curl -s https://raw.githubusercontent.com/devops-book/cloudformation/master/authorized_keys >> /home/centos/.ssh/authorized_keys\n",
+          "chmod 600 /home/centos/.ssh/authorized_keys\n",
+          "chmod 700 /home/centos/.ssh\n",
+          "chown centos:centos -R /home/centos/.ssh\n",
+          "shutdown -r now\n"
+          ]]}} 
+      }
+    }
+  },
+  "Outputs" : {
+    "GreenWeb1Ec2Instance" : {
+      "Description" : "Green Web1 Instance ID",
+      "Value" : { "Ref" : "Web1Ec2Instance" }
+    },
+    "GreenWeb2Ec2Instance" : {
+      "Description" : "Green Web2 Instance ID",
+      "Value" : { "Ref" : "Web2Ec2Instance" }
+    }
+  }
+}
